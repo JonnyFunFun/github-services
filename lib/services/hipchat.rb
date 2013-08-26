@@ -1,6 +1,6 @@
 class Service::HipChat < Service
   string :auth_token, :room, :restrict_to_branch
-  boolean :notify, :quiet_fork, :quiet_watch
+  boolean :notify, :quiet_fork, :quiet_watch, :quiet_comments
   white_list :room, :restrict_to_branch
 
   default_events :commit_comment, :download, :fork, :fork_apply, :gollum,
@@ -12,7 +12,7 @@ class Service::HipChat < Service
     raise_config_error "Missing 'room'" if data['room'].to_s == ''
 
     # push events can be restricted to certain branches
-    if event.to_s == "push"
+    if event.to_s == 'push'
       branch = payload['ref'].split('/').last
       branch_restriction = data['restrict_to_branch'].to_s
 
@@ -25,16 +25,26 @@ class Service::HipChat < Service
     # ignore forks and watches if boolean is set
     return if event.to_s =~ /fork/ && data['quiet_fork']
     return if event.to_s =~ /watch/ && data['quiet_watch']
+    return if event.to_s =~ /comment/ && data['quiet_comments']
 
     http.headers['X-GitHub-Event'] = event.to_s
 
-    res = http_post "https://api.hipchat.com/v1/webhooks/github",
-      :auth_token => data['auth_token'],
-      :room_id => data['room'],
-      :payload => JSON.generate(payload),
-      :notify => data['notify'] ? 1 : 0
-    if res.status < 200 || res.status > 299
-      raise_config_error
+    rooms = data['room'].to_s.split(",")
+    room_ids = if rooms.all? { |room_id| Integer(room_id) rescue false }
+      rooms
+    else
+      [data['room'].to_s]
+    end
+
+    room_ids.each do |room_id|
+      res = http_post "https://api.hipchat.com/v1/webhooks/github",
+        :auth_token => data['auth_token'],
+        :room_id => room_id,
+        :payload => generate_json(payload),
+        :notify => data['notify'] ? 1 : 0
+      if res.status < 200 || res.status > 299
+        raise_config_error
+      end
     end
   end
 end

@@ -9,7 +9,8 @@ class Service::Lighthouse < Service
 
     payload['commits'].each do |commit|
       next if commit['message'] =~ /^x /
-      next if data['send_only_ticket_commits'] == false && (commit['message'] =~ check_for_lighthouse_flags).nil?
+      next if data['send_only_ticket_commits'] == '1' \
+        && (commit['message'] =~ check_for_lighthouse_flags).nil?
 
       commit_id = commit['id']
       added     = commit['added'].map    { |f| ['A', f] }
@@ -32,6 +33,8 @@ class Service::Lighthouse < Service
         </changeset>
       XML
 
+      @lighthouse_body = changeset_xml
+
       account = "http://#{data['subdomain']}.lighthouseapp.com"
 
       begin
@@ -44,5 +47,12 @@ class Service::Lighthouse < Service
         raise_config_error "Invalid subdomain: #{data['subdomain']}"
       end
     end
+  end
+
+  def reportable_http_env(env, time)
+    hash = super(env, time)
+    hash[:request][:body] = @lighthouse_body
+    @lighthouse_body = nil
+    hash
   end
 end

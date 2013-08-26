@@ -4,7 +4,7 @@ class Service::YouTrack < Service
   white_list :base_url, :username, :committers, :branch
 
   def receive_push
-    # If branch is defined by user setting, process commands only if commits 
+    # If branch is defined by user setting, process commands only if commits
     # are on that branch. If branch is not defined, process regardless of branch.
     return unless active_branch?
 
@@ -42,7 +42,7 @@ class Service::YouTrack < Service
   def process_commit(commit)
     author = nil
     commit["message"].split("\n").each { |commit_line|
-      issue_id = commit_line[/( |^)#(\w+-\d+) /, 2]
+      issue_id = commit_line[/( |^)#(\w+-\d+)\b/, 2]
       next if issue_id.nil?
 
       login
@@ -50,8 +50,9 @@ class Service::YouTrack < Service
       author ||= find_user_by_email(commit["author"]["email"])
       return if author.nil?
 
-      command = commit_line[/( |^)#\w+-\d+ (.+)/, 2].strip
+      command = commit_line[/( |^)#\w+-\d+ (.+)/, 2]
       command = "Fixed" if command.nil?
+      command.strip!
       comment_string = "Commit made by '''" + commit["author"]["name"] + "''' on ''" + commit["timestamp"] + "''\n" + commit["url"] + "\n\n{quote}" + commit["message"].to_s + "{quote}"
       execute_command(author, issue_id, command, comment_string)
     }
@@ -68,7 +69,8 @@ class Service::YouTrack < Service
       xml_body.root.each_element do |user_ref|
         res = http_get "rest/admin/user/#{user_ref.attributes['login']}"
         verify_response(res)
-        if REXML::Document.new(res.body).root.attributes["email"].upcase == email.upcase
+        attributes = REXML::Document.new(res.body).root.attributes
+        if attributes['email'].upcase == email.upcase || (attributes['jabber'] ? attributes['jabber'].upcase == email.upcase : false)
           return if !found_user.nil?
           found_user = user_ref.attributes["login"]
         end

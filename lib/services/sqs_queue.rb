@@ -20,7 +20,7 @@ class Service::SqsQueue < Service
     end
 
     # Encode payload to JSON
-    payload_json_data = JSON.generate(payload)
+    payload_json_data = generate_json(payload)
 
     # Send payload to SQS queue
     notify_sqs( access_key(), secret_key(), queue_name(), payload_json_data )
@@ -31,7 +31,7 @@ class Service::SqsQueue < Service
   def notify_sqs(aws_access_key, aws_secret_key, queue_name, payload)
     sqs = RightAws::SqsGen2.new(aws_access_key, aws_secret_key)
     queue = sqs.queue(queue_name)
-    queue.send_message(payload)
+    queue.send_message(clean_for_json(payload))
   end
 
   def access_key
