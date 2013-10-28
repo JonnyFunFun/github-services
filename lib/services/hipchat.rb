@@ -1,10 +1,11 @@
 class Service::HipChat < Service
   string :auth_token, :room, :restrict_to_branch
-  boolean :notify, :quiet_fork, :quiet_watch, :quiet_comments
+  boolean :notify, :quiet_fork, :quiet_watch, :quiet_comments, :quiet_wiki
   white_list :room, :restrict_to_branch
 
   default_events :commit_comment, :download, :fork, :fork_apply, :gollum,
-    :issues, :issue_comment, :member, :public, :pull_request, :push, :watch
+    :issues, :issue_comment, :member, :public, :pull_request, :pull_request_review_comment,
+    :push, :watch
 
   def receive_event
     # make sure we have what we need
@@ -26,6 +27,7 @@ class Service::HipChat < Service
     return if event.to_s =~ /fork/ && data['quiet_fork']
     return if event.to_s =~ /watch/ && data['quiet_watch']
     return if event.to_s =~ /comment/ && data['quiet_comments']
+    return if event.to_s =~ /gollum/ && data['quiet_wiki']
 
     http.headers['X-GitHub-Event'] = event.to_s
 

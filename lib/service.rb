@@ -354,7 +354,8 @@ class Service
         hash = (File.exist?(email_config_file) && YAML.load_file(email_config_file)) || {}
         EMAIL_KEYS.each do |key|
           env_key = "EMAIL_SMTP_#{key.upcase}"
-          if value = ENV[env_key]
+          value = ENV[env_key]
+          if value && value != ''
             hash[key] = value
           end
         end
@@ -761,7 +762,7 @@ class Service
     string.strip!
     if string =~ /^[a-z]+\:\/\//
       uri = Addressable::URI.parse(string)
-      uri.password = "*" * uri.password.size if uri.password
+      uri.password = "*" * 8 if uri.password
       uri.to_s
     else
       string
